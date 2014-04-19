@@ -50,8 +50,9 @@ int main(int argc, char**argv)
         n = recvfrom(sockfd,mesg,1000,0,(struct sockaddr *)&cliaddr,&len);
         sendto(sockfd,mesg,n,0,(struct sockaddr *)&cliaddr,sizeof(cliaddr));
 
-                
+                        
         char** entrada = split(mesg, ':');
+
         if (strcmp(entrada[0], "posicao") == 0){
             char** posicoes = split(entrada[1], ',');      
             posicao.x = (char*)malloc(strlen(posicoes[0])*sizeof(char));
@@ -62,13 +63,22 @@ int main(int argc, char**argv)
         }
 
         else if (strcmp(entrada[0], "est") == 0){
-            sqlite3* db = openDB("estabelecimentos.db");
-            char* query = "SELECT * from estabelecimentos WHERE ID = ";
-            char* filter = concat(2, query, entrada[1]);
-            char* sql = strtok(filter, "\n");
-            printf("SQL %s", sql);           
+            char* entry = strtok(entrada[1], "\n");
+            if (strlen(entry) > 4){
+                fprintf(stderr, "Entrada errada: Insira um número de 3 digitos ou 'all'.");  
+            }else{
+                sqlite3* db = openDB("estabelecimentos.db");            
+                if(strcmp(entry, "all") == 0){
+                    char* sql = "SELECT * from estabelecimentos";
+                    selectDB(sql, db);
+                }else{
+                    char* query = "SELECT * from estabelecimentos WHERE ID = ";
+                    char* sql = concat(2, query, entry);
+                    selectDB(sql, db);
+                }
 
-            //selectDB(sql, db);            
+                     
+            }       
         }        
    }
 }
@@ -83,8 +93,6 @@ sqlite3* openDB(char* database){
     if( rc ){
         fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
         exit(0);
-    }else{
-        fprintf(stderr, "Opened database successfully\n");
     }
     return db;
 }
@@ -93,22 +101,18 @@ sqlite3* openDB(char* database){
 void selectDB(char* sql, sqlite3 *db){
     char *zErrMsg = 0;  
     int rc;
-    const char* data = "Callback function called";
 
     /* Execute SQL statement */
-    rc = sqlite3_exec(db, sql, callback, (void*)data, &zErrMsg);
+    rc = sqlite3_exec(db, sql, callback, 0, &zErrMsg);
     if( rc != SQLITE_OK ){
         fprintf(stderr, "SQL error: %s\n", zErrMsg);
         sqlite3_free(zErrMsg);
-    }else{
-        fprintf(stdout, "Operation done successfully\n");
     }
 }
 
 
 static int callback(void *data, int argc, char **argv, char **azColName){
     int i;
-    fprintf(stderr, "%s: ", (const char*)data);
     for(i=0; i<argc; i++){
         printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
     }
