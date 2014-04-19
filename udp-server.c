@@ -14,6 +14,7 @@ char* concat(int count, ...);
 sqlite3* openDB(char* database);
 void selectDB(char* sql, sqlite3 *db);
 static int callback(void *data, int argc, char **argv, char **azColName);
+char* normalizeCoordinate(char* coordinate);
 
 
 int main(int argc, char**argv)
@@ -33,7 +34,8 @@ int main(int argc, char**argv)
         char *y;
     }Posicao; 
 
-    Posicao posicao;
+    
+
     sockfd=socket(AF_INET,SOCK_DGRAM,0);
 
     bzero(&servaddr,sizeof(servaddr));
@@ -50,35 +52,100 @@ int main(int argc, char**argv)
         n = recvfrom(sockfd,mesg,1000,0,(struct sockaddr *)&cliaddr,&len);
         sendto(sockfd,mesg,n,0,(struct sockaddr *)&cliaddr,sizeof(cliaddr));
 
+        Posicao posicao;
                         
         char** entrada = split(mesg, ':');
 
         if (strcmp(entrada[0], "posicao") == 0){
-            char** posicoes = split(entrada[1], ',');      
-            posicao.x = (char*)malloc(strlen(posicoes[0])*sizeof(char));
-            posicao.y = (char*)malloc(strlen(posicoes[1])*sizeof(char));    
-            strcpy(posicao.x, posicoes[0]);
-            strcpy(posicao.y, posicoes[1]);
-            printf("\nPosicao do usuario-> X: %s Y: %s \n", posicao.x, posicao.y);
+            char* position = strtok(entrada[1], "\n");
+            
+            if(strcmp(position, "get") == 0){
+                printf("\nPosicao do usuario-> X: %s Y: %s \n", posicao.x, posicao.y);            
+            }
+            else{
+                char** posicoes = split(position, ',');      
+                posicao.x = (char*)malloc(strlen(posicoes[0])*sizeof(char));
+                posicao.y = (char*)malloc(strlen(posicoes[1])*sizeof(char));    
+                strcpy(posicao.x, posicoes[0]);
+                strcpy(posicao.y, posicoes[1]);
+                printf("\nPosicao do usuario-> X: %s Y: %s \n", posicao.x, posicao.y);
+            }
         }
 
         else if (strcmp(entrada[0], "est") == 0){
             char* entry = strtok(entrada[1], "\n");
-            if (strlen(entry) > 4){
-                fprintf(stderr, "Entrada errada: Insira um número de 3 digitos ou 'all'.");  
-            }else{
-                sqlite3* db = openDB("estabelecimentos.db");            
-                if(strcmp(entry, "all") == 0){
-                    char* sql = "SELECT * from estabelecimentos";
-                    selectDB(sql, db);
-                }else{
-                    char* query = "SELECT * from estabelecimentos WHERE ID = ";
-                    char* sql = concat(2, query, entry);
-                    selectDB(sql, db);
-                }
 
-                     
-            }       
+            if(strcmp(entry, "cat")==0){
+                char* category = strtok(entrada[2], "\n");
+                
+                char* x_plus_100 = (char*)malloc(4*sizeof(char));
+                char* x_minus_100 = (char*)malloc(4*sizeof(char));
+                char* y_plus_100 = (char*)malloc(4*sizeof(char));
+                char* y_minus_100 = (char*)malloc(4*sizeof(char));
+                
+                sprintf(x_plus_100,"%d",((atoi(posicao.x)+ 100))); 
+                sprintf(x_minus_100,"%d",((atoi(posicao.x) - 100)));
+                sprintf(y_plus_100,"%d",((atoi(posicao.y) + 100)));
+                sprintf(y_minus_100,"%d",((atoi(posicao.y) - 100)));
+
+                char* query1 = "SELECT * from estabelecimentos WHERE coord_x >= ";
+                char* query2 = " AND coord_x <= ";                                 
+                char* query3 = " AND coord_y >= ";
+                char* query4 = " AND coord_y <= ";
+                char* query5 = " AND category = ";
+                
+                char* sql1 = concat(2, query1, x_minus_100);
+                char* sql2 = concat(3, sql1, query2, x_plus_100);
+                char* sql4 = concat(3, sql2, query3, y_minus_100);
+                char* sql5 = concat(3, sql4, query4, y_plus_100); 
+                char* sql6 = concat(5, sql5, query5, "'", category, "';");
+                sqlite3* db = openDB("estabelecimentos.db");
+                selectDB(sql6, db);
+            }
+            
+            else if (strcmp(entry, "around")==0){
+
+                char* x_plus_100 = (char*)malloc(4*sizeof(char));
+                char* x_minus_100 = (char*)malloc(4*sizeof(char));
+                char* y_plus_100 = (char*)malloc(4*sizeof(char));
+                char* y_minus_100 = (char*)malloc(4*sizeof(char));
+                
+                sprintf(x_plus_100,"%d",((atoi(posicao.x)+ 100))); 
+                sprintf(x_minus_100,"%d",((atoi(posicao.x) - 100)));
+                sprintf(y_plus_100,"%d",((atoi(posicao.y) + 100)));
+                sprintf(y_minus_100,"%d",((atoi(posicao.y) - 100)));
+
+                char* query1 = "SELECT * from estabelecimentos WHERE coord_x >= ";
+                char* query2 = " AND coord_x <= ";                                 
+                char* query3 = " AND coord_y >= ";
+                char* query4 = " AND coord_y <= ";
+                
+                char* sql1 = concat(2, query1, x_minus_100);
+                char* sql2 = concat(3, sql1, query2, x_plus_100);
+                char* sql4 = concat(3, sql2, query3, y_minus_100);
+                char* sql5 = concat(3, sql4, query4, y_plus_100); 
+                sqlite3* db = openDB("estabelecimentos.db");
+                selectDB(sql5, db);
+            }
+
+
+            else{
+
+                if (strlen(entry) > 4){
+                    fprintf(stderr, "Entrada errada: Insira um número de 3 digitos ou 'all'.");  
+                }else{
+                    sqlite3* db = openDB("estabelecimentos.db");            
+                    if(strcmp(entry, "all") == 0){
+                        char* sql = "SELECT * from estabelecimentos";
+                        selectDB(sql, db);
+                    }else{
+                        char* query = "SELECT * from estabelecimentos WHERE ID = ";
+                        char* sql = concat(2, query, entry);
+                        selectDB(sql, db);
+                    }
+                         
+                }    
+            }   
         }        
    }
 }
@@ -146,6 +213,18 @@ char* concat(int count, ...)
     return result;
 }
 
+char* normalizeCoordinate(char* coordinate){
+    int c = atoi(coordinate);
+    if (c<0){
+        c = 1000 + c;
+    }else{
+        c = c;
+    }
+    char* resposta = (char*)malloc(3*sizeof(char));
+    sprintf(resposta, "%d", (c%1000));
+    return resposta;
+}
+    
 
 char **split(char frase[], char separador)
 {
