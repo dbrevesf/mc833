@@ -8,25 +8,40 @@ cursor = conn.cursor()
 
 cursor.execute(""" DROP TABLE IF EXISTS estabelecimentos""")
 cursor.execute("""CREATE TABLE estabelecimentos(
-					ID INTEGER PRIMARY KEY,
+					ID INTEGER PRIMARY KEY AUTOINCREMENT,
 					name TEXT,
 					coord_x REAL NOT NULL,
 					coord_y REAL NOT NULL,
 					information TEXT,
-                    category TEXT,
-					rate REAL)""")
+                    category TEXT)""")
+                    
+cursor.execute(""" DROP TABLE IF EXISTS notas""")					
+cursor.execute("""CREATE TABLE notas(
+					voteId INTEGER PRIMARY KEY AUTOINCREMENT,
+					estabId INTEGER, 
+					rate REAL,
+					FOREIGN KEY (estabId) REFERENCES estabelecimentos(ID))""")
+					
 print("+ database created")
 
-estabelecimentos = [(001, 'Posto Shell', 0, 300, 'Posto de gasolina e conveniencia', 'conveniencia', 5),
-					(002, 'McDonalds', -50, 300, 'Fast-food gorduroso', 'fastfood', 7),
-					(003, 'BarDoZe', -200, 300, 'Melhor bar de Barao', 'bar', 10),
-					(004, 'BurgerKing', -600, 300, 'Fast-food mais gorduroso', 'fastfood', 5),
-					(005, 'Dogao', -250, 350, 'Melhor hot-dog do mundo','fastfood', 8),
-					(006, 'Subway', 100, 300, 'Fast-food saudavel', 'fastfood', 6),
-					(007, 'Eskina', -200, 350, 'Bar honesto', 'bar', 7)]
+estabelecimentos = [(None, 'Posto Shell', 10, 300, 'Posto de gasolina e conveniencia', 'conveniencia'),
+					(None, 'McDonalds', 10, 290, 'Fast-food gorduroso', 'fastfood'),
+					(None, 'BarDoZe', 10, 250, 'Melhor bar de Barao', 'bar'),
+					(None, 'BurgerKing', 10, 100, 'Fast-food mais gorduroso', 'fastfood'),
+					(None, 'Dogao', 0, 200, 'Melhor hot-dog do mundo','fastfood'),
+					(None, 'Subway', 20, 350, 'Fast-food saudavel', 'fastfood'),
+					(None, 'Eskina', 0, 205, 'Bar honesto', 'bar')]
+notas = [(None, 1, 5),
+		 (None, 2, 5),
+		 (None, 3, 5),
+		 (None, 4, 5),
+		 (None, 5, 5),
+		 (None, 6, 5),
+		 (None, 7, 5)]
 
 
-cursor.executemany("INSERT INTO estabelecimentos VALUES (?,?,?,?,?,?,?)", estabelecimentos)
+cursor.executemany("INSERT INTO estabelecimentos VALUES (?,?,?,?,?,?)", estabelecimentos)
+cursor.executemany("INSERT INTO notas VALUES (?,?,?)", notas)
 
 print("+ database populated")
 
