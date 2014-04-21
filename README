@@ -1,0 +1,32 @@
+Os passos a seguir servem tanto para o UDP quanto para o TCP
+
+1. Compilar os programas:
+
+	1.1. Abra o terminal
+	1.2. Acesse a pasta onde estao os programas
+	1.3. Execute:
+		1.3.1. make udp 
+		1.3.2. make tcp
+
+
+2. Executar servidor UDP ou TCP:
+
+	1.1. ./udpserver <porta> ou ./tcpserver <porta>
+
+
+3. Executar cliente UDP ou TCP:
+
+	3.1. ./udpclient <ip> <porta> ou ./tcpclient <ip> <porta>
+
+	* Lembrando que tem que rodar em dois terminais diferentes
+
+4.Após a execucao do cliente, atribua a posicao do usuario com:
+
+	4.1 posicao:<x>,<y>
+
+	* lembrando que x e y devem estar entre 0 e 1000
+
+
+5. Para obter ajuda, execute:
+
+	5.1 HELP: (isso, HELP com dois pontos, ou seja, HELP: )
