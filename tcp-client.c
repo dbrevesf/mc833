@@ -47,19 +47,6 @@ int main(int argc, char**argv) {
 		/* Envia mensagem ao servidor */
 		sendto(sockfd, mensagemAEnviar, strlen(mensagemAEnviar), 0,
 				(struct sockaddr *) &servaddr, sizeof(servaddr));
-		
-		/* Recebe a mensagem de retorno do servidor */
-		n = recvfrom(sockfd, mensagemAReceber, 10000, 0, NULL, NULL);
-		
-		/* Split na mensagem recebida */
-        char** msg = split(strtok(mensagemAReceber, "\n"), ':');
-        
-        /* Usuario pediu pra sair: finaliza a execucao do programa */ 
-        if(strcmp(msg[0], "EXIT") == 0){
-            fprintf(stderr, "\nGOOD BYE\n");
-            exit(1);
-        }
-		
 	}
 }
 

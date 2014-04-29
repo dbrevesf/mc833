@@ -10,9 +10,13 @@
 char* concat(int count, ...);
 char* normalizeCoordinate(char* coordinate);
 char** split(char* string, char delimiter);
+int validaString(char* str, char validator);
 sqlite3* openDB(char* database);
 static int callback(void *data, int argc, char **argv, char **azColName);
 void executeDB(char* sql, sqlite3 *db);
+
+/* variavel global para indicar se a posicao do usario ja foi inserida ou nao */
+int positionIserted = 0;
 
 /* main */
 int main(int argc, char**argv) {
@@ -76,24 +80,15 @@ int main(int argc, char**argv) {
 				/* recebe mensagem do cliente*/
 				n = recvfrom(connfd, mesg, 1000, 0,
 						(struct sockaddr *) &cliaddr, &clilen);
-						
-				/* envia uma mensagem de retorno ao cliente */
-				sendto(connfd, mesg, n, 0, (struct sockaddr *) &cliaddr,
-						sizeof(cliaddr));
 
 				/* instancia struct de posicao */
 				Posicao posicao;
 
 				/* verifica se ha o caracter ':', que valida a mensagem */
 				int correctEntry = 0;
-				int index = 0;
-				for (index = 0; index < strlen(mesg); index++) {
-					
-					/* se ha ':': entrada esta correta*/
-					if (mesg[index] == ':')
-						correctEntry = 1;
-				}
-
+				correctEntry = validaString(mesg, ':');
+				
+				
 				/* entrada incorreta: exibe mensagem de ajuda */
 				if (correctEntry == 0) {
 					fprintf(stderr,
@@ -102,242 +97,343 @@ int main(int argc, char**argv) {
 				
 				/* entrada correta: executa as acoes enviadas */ 
 				else {
+			
+					char* mensagemAux = (char*)malloc(sizeof(mesg));
+					strcpy(mensagemAux, mesg);
 					
 					/* Split da mensagem */
 					char** entrada = split(strtok(mesg, "\n"), ':');
-
+					
 					/* MENSAGEM de posicao enviada: executa as acoes de posicao */
 					if (strcmp(entrada[0], "posicao") == 0) {
 
-						/* remove \n da entrada */
-						char* position = strtok(entrada[1], "\n");
-
-						/* MENSAGEM: posicao:get -> imprime posicao do usuario na tela */
-						if (strcmp(position, "get") == 0) {
-			
-							/* Exibe mensagem de sucesso */
-							printf("\nPosicao do usuario-> X: %s Y: %s \n", posicao.x,
-									posicao.y);
-						}
-
-						/* MENSAGEM: posicao:<x>,<y> -> armazena x e y na posicao do usuario */
-						else if (strcmp(position, "set") == 0) {
-
-							/* split pra pegar x e y */
-							char** posicoes = split(entrada[2], ',');
-							int X = atoi(posicoes[0]);
-							int Y = atoi(posicoes[1]);
-
-							/* Posicao fora da area de cobertura: exibe mensagem de erro */
-							if (X > 1000 || X < 0 || Y > 1000 || Y < 0) {
-
+						if (strlen(entrada[1])<3){
 								fprintf(stderr,
-										"\nERRO: fora da area de cobertura do servico \n");
+									"\nEntrada errada. Digite HELP: para exibir as possiveis entradas\n");
+						}
+						
+						else {
+						
+							/* remove \n da entrada */
+							char* position = strtok(entrada[1], "\n");
+
+							/* MENSAGEM: posicao:get -> imprime posicao do usuario na tela */
+							if (strcmp(position, "get") == 0 && positionIserted==1) {
+				
+								/* Exibe mensagem de sucesso */
+								printf("\nPosicao do usuario-> X: %s Y: %s \n", posicao.x,
+										posicao.y);
+							}
+
+							/* MENSAGEM: posicao:<x>,<y> -> armazena x e y na posicao do usuario */
+							else if (strcmp(position, "set") == 0) {
+								
+								int stringValida = 0;
+								
+								/* verifica se há o separador na string */
+								stringValida = validaString(entrada[2], ',');
+								
+								if (stringValida == 0){
+									fprintf(stderr,
+										"\nEntrada errada. Digite HELP: para exibir as possiveis entradas\n");
+								}
+								else{
+									/* split pra pegar x e y */
+									char** posicoes = split(entrada[2], ',');
+									int X = atoi(posicoes[0]);
+									int Y = atoi(posicoes[1]);
+
+									/* Posicao fora da area de cobertura: exibe mensagem de erro */
+									if (X > 1000 || X < 0 || Y > 1000 || Y < 0) {
+
+										fprintf(stderr,
+												"\nERRO: fora da area de cobertura do servico \n");
+									} 
+									
+									/* Posicao dentro da area de cobertura: atribui-as a struct de posicao */
+									else {
+
+										/* aloca memoria pras posicoes */
+										posicao.x = (char*) malloc(
+												strlen(posicoes[0]) * sizeof(char));
+										posicao.y = (char*) malloc(
+												strlen(posicoes[1]) * sizeof(char));
+												
+										/* seta posicoes */
+										strcpy(posicao.x, posicoes[0]);
+										strcpy(posicao.y, posicoes[1]);
+										
+										positionIserted = 1;
+										
+										/* Exibe mensagem de sucesso */
+										fprintf(stderr, "\nPosicao do usuario-> X: %s Y: %s \n",
+												posicao.x, posicao.y);
+									}
+								}
 							} 
 							
-							/* Posicao dentro da area de cobertura: atribui-as a struct de posicao */
+							/* MENSAGEM posicao:<tag invalida> -> exibe mensagem de ajuda */
 							else {
-
-								/* aloca memoria pras posicoes */
-								posicao.x = (char*) malloc(
-										strlen(posicoes[0]) * sizeof(char));
-								posicao.y = (char*) malloc(
-										strlen(posicoes[1]) * sizeof(char));
-										
-								/* seta posicoes */
-								strcpy(posicao.x, posicoes[0]);
-								strcpy(posicao.y, posicoes[1]);
 								
-								/* Exibe mensagem de sucesso */
-								fprintf(stderr, "\nPosicao do usuario-> X: %s Y: %s \n",
-										posicao.x, posicao.y);
+								fprintf(stderr,
+										"\nEntrada errada. Digite HELP: para exibir as possiveis entradas\n");
 							}
-						} 
-						
-						/* MENSAGEM posicao:<tag invalida> -> exibe mensagem de ajuda */
-						else {
-							
-							fprintf(stderr,
-									"\nEntrada errada. Digite HELP: para exibir as possiveis entradas\n");
 						}
 					}
 
 					/* mensagem de estabelecimento enviada: executa as acoes de estabelecimento */
 					else if (strcmp(entrada[0], "est") == 0) {
-
-						/* remove \n da entrada */
-						char* entry = strtok(entrada[1], "\n");
-
-						/* MENSAGEM est:cat:<categoria> -> lista estabelecimentos da categoria <categoria> 
-						 * num raio de 100 m do usuario */
-						if (strcmp(entry, "cat") == 0) {
-
-							/* remove \n da entrada */
-							char* category = strtok(entrada[2], "\n");
-
-							/* aloca memoria pras posicoes do raio de 100 metro do usuario */
-							char* x_plus_100 = (char*) malloc(4 * sizeof(char));
-							char* x_minus_100 = (char*) malloc(4 * sizeof(char));
-							char* y_plus_100 = (char*) malloc(4 * sizeof(char));
-							char* y_minus_100 = (char*) malloc(4 * sizeof(char));
-
-							/* seta posicoes */
-							sprintf(x_plus_100, "%d", ((atoi(posicao.x) + 100)));
-							sprintf(x_minus_100, "%d", ((atoi(posicao.x) - 100)));
-							sprintf(y_plus_100, "%d", ((atoi(posicao.y) + 100)));
-							sprintf(y_minus_100, "%d", ((atoi(posicao.y) - 100)));
-
-							/* monta query */
-							char* query1 =
-									"SELECT * from estabelecimentos WHERE coord_x >= ";
-							char* query2 = " AND coord_x <= ";
-							char* query3 = " AND coord_y >= ";
-							char* query4 = " AND coord_y <= ";
-							char* query5 = " AND category = ";
-							char* sql1 = concat(2, query1, x_minus_100);
-							char* sql2 = concat(3, sql1, query2, x_plus_100);
-							char* sql4 = concat(3, sql2, query3, y_minus_100);
-							char* sql5 = concat(3, sql4, query4, y_plus_100);
-							char* sql6 = concat(5, sql5, query5, "'", category, "';");
-
-							/* Abre o bd */
-							sqlite3* db = openDB("estabelecimentos.db");
-
-							/* Executa a query */
-							executeDB(sql6, db);
-						}
-
-						/* MENSAGEM est:around -> lista todos estabelecimentos num raio de 100 m do usuario */
-						else if (strcmp(entry, "around") == 0) {
-
-							/* aloca memoria pras posicoes do raio de 100 metro do usuario */
-							char* x_plus_100 = (char*) malloc(4 * sizeof(char));
-							char* x_minus_100 = (char*) malloc(4 * sizeof(char));
-							char* y_plus_100 = (char*) malloc(4 * sizeof(char));
-							char* y_minus_100 = (char*) malloc(4 * sizeof(char));
-
-							/* seta posicoes */
-							sprintf(x_plus_100, "%d", ((atoi(posicao.x) + 100)));
-							sprintf(x_minus_100, "%d", ((atoi(posicao.x) - 100)));
-							sprintf(y_plus_100, "%d", ((atoi(posicao.y) + 100)));
-							sprintf(y_minus_100, "%d", ((atoi(posicao.y) - 100)));
-
-							/* monta query */
-							char* query1 =
-									"SELECT * from estabelecimentos WHERE coord_x >= ";
-							char* query2 = " AND coord_x <= ";
-							char* query3 = " AND coord_y >= ";
-							char* query4 = " AND coord_y <= ";
-							char* sql1 = concat(2, query1, x_minus_100);
-							char* sql2 = concat(3, sql1, query2, x_plus_100);
-							char* sql4 = concat(3, sql2, query3, y_minus_100);
-							char* sql5 = concat(3, sql4, query4, y_plus_100);
-
-							/* abre o bd*/
-							sqlite3* db = openDB("estabelecimentos.db");
-
-							/* executa a query */
-							executeDB(sql5, db);
-						}
-
-						/* MENSAGEM est:vote:<est>:<rate> -> Vota um valor <rate> ao estabelecimento de id <est> */
-						else if (strcmp(entry, "vote") == 0) {
-
-							/* pega id do estabelecimento */
-							char* establishment = entrada[2];
-							
-							/* pega nota atribuida */
-							char* rate = entrada[3];
-							
-							/* Nota fora da escala: exibe mensagem de erro */
-							if (atoi(rate) > 10 || atoi(rate) < 0) {
-								fprintf(stderr,
-										"\nEntrada errada: Insira um valor entre 0 e 10\n");
-							} 
-							
-							/* Nota dentro da escala: atribui a nota ao estabelecimento */
-							else {
-								
-								/* monta a query */
-								char* sql = concat(5,
-										"INSERT INTO notas VALUES (NULL, ",
-										establishment, " ,", rate, " )");
-										
-								/* abre o bd */
-								sqlite3* db = openDB("estabelecimentos.db");
-								
-								/* executa a query */
-								executeDB(sql, db);
-								
-								/* exibe mensagem de sucesso */
-								fprintf(stderr,
-										"\nO estabelecimento %s recebeu a nota %s\n",
-										establishment, rate);
-							}
-						}
-
-						/* MENSAGEM est:getRate:<est> -> Exibe a média dos votos para o estabelecimento com id <est>*/
-						else if (strcmp(entry, "getRate") == 0) {
-							
-							/* pega id do estabelecimento */
-							char* establishment = entrada[2];
-							
-							/* monta query */
-							char* sql = concat(2,
-									"SELECT AVG(rate) from notas where estabId= ",
-									establishment);
-									
-							/* abre o bd */
-							sqlite3* db = openDB("estabelecimentos.db");
-							
-							/* executa query */
-							executeDB(sql, db);
-						}
-
-						/* MENSAGEM est:getInfo:<est> -> Exibe informacoes gerais sobre o estabelecimento com id <est>*/
-						else if (strcmp(entry, "getInfo") == 0) {
-
-							/* entrada fora do padrao: exibe mensagem de erro */
-							if (strlen(entrada[2]) > 3) {
-							
-								fprintf(stderr,
-										"Entrada errada: Insira um ID de no maximo 3 digitos ou a key 'all'");
-							} 
-							
-							/* entrada correta: exibe informacoes */
-							else {
-								
-								/* abre bd */
-								sqlite3* db = openDB("estabelecimentos.db");
-
-								/* MENSAGEM est:getInfo:all -> exibe informacoes de todos estabelecimentos cadastrados*/
-								if (strcmp(entrada[2], "all") == 0) {
-
-									/* monta query */
-									char* sql = "SELECT * from estabelecimentos";
-
-									/* executa query */
-									executeDB(sql, db);
-								}
-								
-								/* MENSAGEM est:getInfo:<id>  -> exibe informacoes do estabelecimento cujo id é <id>*/
-								else {
-
-									/* monta query */
-									char* query =
-											"SELECT * from estabelecimentos WHERE ID = ";
-									char* sql = concat(2, query, entrada[2]);
-
-									/* executa query */
-									executeDB(sql, db);
-								}
-							}
-						} 
 						
-						/* entrada fora do padrao: exibe mensagem de ajuda */
-						else {
-							fprintf(stderr,
+						if (strlen(entrada[1])<3){
+								fprintf(stderr,
 									"\nEntrada errada. Digite HELP: para exibir as possiveis entradas\n");
+						}
+						else {
+							/* remove \n da entrada */
+							char* entry = strtok(entrada[1], "\n");
+
+							/* MENSAGEM est:cat:<categoria> -> lista estabelecimentos da categoria <categoria> 
+							 * num raio de 100 m do usuario */
+							if (strcmp(entry, "cat") == 0 && positionIserted==1) {
+
+								if (strlen(entrada[2])<3){
+									fprintf(stderr,
+										"\nEntrada errada. Digite HELP: para exibir as possiveis entradas\n");
+								}
+								else{
+									/* remove \n da entrada */
+									char* category = strtok(entrada[2], "\n");
+
+									/* aloca memoria pras posicoes do raio de 100 metro do usuario */
+									char* x_plus_100 = (char*) malloc(4 * sizeof(char));
+									char* x_minus_100 = (char*) malloc(4 * sizeof(char));
+									char* y_plus_100 = (char*) malloc(4 * sizeof(char));
+									char* y_minus_100 = (char*) malloc(4 * sizeof(char));
+
+									/* seta posicoes */
+									sprintf(x_plus_100, "%d", ((atoi(posicao.x) + 100)));
+									sprintf(x_minus_100, "%d", ((atoi(posicao.x) - 100)));
+									sprintf(y_plus_100, "%d", ((atoi(posicao.y) + 100)));
+									sprintf(y_minus_100, "%d", ((atoi(posicao.y) - 100)));
+
+									/* monta query */
+									char* query1 =
+											"SELECT * from estabelecimentos WHERE coord_x >= ";
+									char* query2 = " AND coord_x <= ";
+									char* query3 = " AND coord_y >= ";
+									char* query4 = " AND coord_y <= ";
+									char* query5 = " AND category = ";
+									char* sql1 = concat(2, query1, x_minus_100);
+									char* sql2 = concat(3, sql1, query2, x_plus_100);
+									char* sql4 = concat(3, sql2, query3, y_minus_100);
+									char* sql5 = concat(3, sql4, query4, y_plus_100);
+									char* sql6 = concat(5, sql5, query5, "'", category, "';");
+
+									/* Abre o bd */
+									sqlite3* db = openDB("estabelecimentos.db");
+
+									/* Executa a query */
+									executeDB(sql6, db);
+								}
+							}
+
+							/* MENSAGEM est:around -> lista todos estabelecimentos num raio de 100 m do usuario */
+							else if (strcmp(entry, "around") == 0 && positionIserted==1) {
+
+								/* aloca memoria pras posicoes do raio de 100 metro do usuario */
+								char* x_plus_100 = (char*) malloc(4 * sizeof(char));
+								char* x_minus_100 = (char*) malloc(4 * sizeof(char));
+								char* y_plus_100 = (char*) malloc(4 * sizeof(char));
+								char* y_minus_100 = (char*) malloc(4 * sizeof(char));
+
+								/* seta posicoes */
+								sprintf(x_plus_100, "%d", ((atoi(posicao.x) + 100)));
+								sprintf(x_minus_100, "%d", ((atoi(posicao.x) - 100)));
+								sprintf(y_plus_100, "%d", ((atoi(posicao.y) + 100)));
+								sprintf(y_minus_100, "%d", ((atoi(posicao.y) - 100)));
+
+								/* monta query */
+								char* query1 =
+										"SELECT * from estabelecimentos WHERE coord_x >= ";
+								char* query2 = " AND coord_x <= ";
+								char* query3 = " AND coord_y >= ";
+								char* query4 = " AND coord_y <= ";
+								char* sql1 = concat(2, query1, x_minus_100);
+								char* sql2 = concat(3, sql1, query2, x_plus_100);
+								char* sql4 = concat(3, sql2, query3, y_minus_100);
+								char* sql5 = concat(3, sql4, query4, y_plus_100);
+
+								/* abre o bd*/
+								sqlite3* db = openDB("estabelecimentos.db");
+
+								/* executa a query */
+								executeDB(sql5, db);
+							}
+
+							/* MENSAGEM est:vote:<est>:<rate> -> Vota um valor <rate> ao estabelecimento de id <est> */
+							else if (strcmp(entry, "vote") == 0) {
+								
+								/* Checa validade da entrada do voto*/
+								int in = 0;
+								int twoPoints = 0;
+								for (in=0; in<strlen(mensagemAux)-1; in++){
+									if (mensagemAux[in] == ':'){
+										twoPoints++;
+									}
+								}
+								
+								/* entrada errada: exibe erro */ 
+								if (twoPoints != 3){
+									fprintf(stderr,
+											"\nEntrada errada. Digite HELP: para exibir as possiveis entradas\n");
+								}
+								
+								/* entrada correta: atribui voto */
+								else{
+									
+									if (strlen(entrada[2]) < 1 || strlen(entrada[3]) < 1){
+										fprintf(stderr,
+											"\nEntrada errada. Digite HELP: para exibir as possiveis entradas\n");
+									}
+									else{
+										/* pega id do estabelecimento */
+										char* establishment = entrada[2];
+										
+										/* pega nota atribuida */
+										char* rate = entrada[3];
+										
+										/* Nota fora da escala: exibe mensagem de erro */
+										if (atoi(rate) > 10 || atoi(rate) < 0) {
+											fprintf(stderr,
+													"\nEntrada errada: Insira um valor entre 0 e 10\n");
+										} 
+										
+										/* Nota dentro da escala: atribui a nota ao estabelecimento */
+										else {
+											
+											/* monta a query */
+											char* sql = concat(5,
+													"INSERT INTO notas VALUES (NULL, ",
+													establishment, " ,", rate, " )");
+													
+											/* abre o bd */
+											sqlite3* db = openDB("estabelecimentos.db");
+											
+											/* executa a query */
+											executeDB(sql, db);
+											
+											/* exibe mensagem de sucesso */
+											fprintf(stderr,
+													"\nO estabelecimento %s recebeu a nota %s\n",
+													establishment, rate);
+										}
+									}
+								}
+							}
+
+							/* MENSAGEM est:getRate:<est> -> Exibe a média dos votos para o estabelecimento com id <est>*/
+							else if (strcmp(entry, "getRate") == 0) {
+								
+								/* Checa validade da entrada do getRate*/
+								int in = 0;
+								int twoPoints = 0;
+								for (in=0; in<strlen(mensagemAux)-1; in++){
+									if (mensagemAux[in] == ':'){
+										twoPoints++;
+									}
+								}
+								
+								/* entrada errada: exibe erro */ 
+								if (twoPoints != 2){
+									fprintf(stderr,
+											"\nEntrada errada. Digite HELP: para exibir as possiveis entradas\n");
+								}
+								else{
+									
+									if (strlen(entrada[2]) < 1){
+										fprintf(stderr,
+											"\nEntrada errada. Digite HELP: para exibir as possiveis entradas\n");
+									}
+									else{
+									
+										/* pega id do estabelecimento */
+										char* establishment = entrada[2];
+										
+										/* monta query */
+										char* sql = concat(2,
+												"SELECT AVG(rate) from notas where estabId= ",
+												establishment);
+												
+										/* abre o bd */
+										sqlite3* db = openDB("estabelecimentos.db");
+										
+										/* executa query */
+										executeDB(sql, db);
+									}
+								}
+							}
+
+							/* MENSAGEM est:getInfo:<est> -> Exibe informacoes gerais sobre o estabelecimento com id <est>*/
+							else if (strcmp(entry, "getInfo") == 0) {
+								
+								/* Checa validade da entrada do getInfo*/
+								int in = 0;
+								int twoPoints = 0;
+								for (in=0; in<strlen(mensagemAux)-1; in++){
+									if (mensagemAux[in] == ':'){
+										twoPoints++;
+									}
+								}
+								
+								/* entrada errada: exibe erro */ 
+								if (twoPoints != 2){
+									fprintf(stderr,
+											"\nEntrada errada. Digite HELP: para exibir as possiveis entradas\n");
+								}
+								else{
+									/* entrada fora do padrao: exibe mensagem de erro */
+									if (strlen(entrada[2]) > 3 || strlen(entrada[2]) < 1) {
+									
+										fprintf(stderr,
+												"Entrada errada: Insira um ID de no maximo 3 digitos ou a key 'all'");
+									} 
+									
+									/* entrada correta: exibe informacoes */
+									else {
+										
+										/* abre bd */
+										sqlite3* db = openDB("estabelecimentos.db");
+
+										/* MENSAGEM est:getInfo:all -> exibe informacoes de todos estabelecimentos cadastrados*/
+										if (strcmp(entrada[2], "all") == 0) {
+
+											/* monta query */
+											char* sql = "SELECT * from estabelecimentos";
+
+											/* executa query */
+											executeDB(sql, db);
+										}
+										
+										/* MENSAGEM est:getInfo:<id>  -> exibe informacoes do estabelecimento cujo id é <id>*/
+										else {
+
+											/* monta query */
+											char* query =
+													"SELECT * from estabelecimentos WHERE ID = ";
+											char* sql = concat(2, query, entrada[2]);
+
+											/* executa query */
+											executeDB(sql, db);
+										}
+									}
+								}
+							} 
+							
+							/* entrada fora do padrao: exibe mensagem de ajuda */
+							else {
+								fprintf(stderr,
+										"\nEntrada errada. Digite HELP: para exibir as possiveis entradas\n");
+							}
 						}
 					} 
 					
@@ -347,11 +443,11 @@ int main(int argc, char**argv) {
 						fprintf(stderr,
 								"\nposicao:set:<x>,<y>   ->  Seta posicao do usuario\n");
 						fprintf(stderr,
-								"posicao:get             ->  Exibe posicao do usuario\n");
+								"posicao:get     (*)     ->  Exibe posicao do usuario \n");
 						fprintf(stderr,
-								"est:cat:<cat>           ->  Lista estabelecimento em um raio de 100 m cuja categoria é <cat>\n");
+								"est:cat:<cat>   (*)     ->  Lista estabelecimento em um raio de 100 m cuja categoria é <cat>\n");
 						fprintf(stderr,
-								"est:around              ->  Lista todos estabelecimentos cadastrados num raio de 100 m do usuario\n");
+								"est:around      (*)     ->  Lista todos estabelecimentos cadastrados num raio de 100 m do usuario \n");
 						fprintf(stderr,
 								"est:vote:<id>:<rate>    ->  Atribui nota <rate> (0 a 10) ao estabelecimento cujo id é <id>\n");
 						fprintf(stderr,
@@ -360,6 +456,10 @@ int main(int argc, char**argv) {
 								"est:getInfo:all         ->  Lista todos estabelecimentos cadastrados\n");
 						fprintf(stderr,
 								"est:getInfo:<id>        ->  Lista estabelecimento cujo ID é <id>\n");
+						fprintf(stderr,
+								"EXIT:                   ->  Sair do programa (SEMPRE USE EXIT PARA SAIR !!!!)\n");
+						fprintf(stderr,
+								"\n*** AS FUNCOES COM (*) SÓ SAO POSSIVEIS APÓS USUÁRIO INFORMAR LOCALIZACAO ***\n");
 					}
 
 					/* MENSAGEM EXIT -> finaliza execucao do programa */
@@ -477,4 +577,16 @@ char **split(char frase[], char separador) {
 		return result;
 	} else
 		printf("Nenhum Separador Encontrado");
+}
+
+int validaString(char* str, char validator){
+	int i = 0;
+	int valida = 0;
+	for (i=0; i < strlen(str); i++){
+		if (str[i]==validator){
+			valida = 1;
+			break;
+		}
+	}
+	return valida;		
 }

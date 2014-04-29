@@ -22,7 +22,7 @@ Os passos a seguir servem tanto para o UDP quanto para o TCP
 
 4.Após a execucao do cliente, atribua a posicao do usuario com:
 
-	4.1 posicao:<x>,<y>
+	4.1 posicao:set:<x>,<y>
 
 	* lembrando que x e y devem estar entre 0 e 1000
 
